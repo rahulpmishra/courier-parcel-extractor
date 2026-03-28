@@ -1,0 +1,35 @@
+# Local secrets and runtime state
+backend/api.txt
+backend/api_usage.json
+backend/cloudrun.env.yaml
+frontend/app/config.php
+frontend/logindata.json
+
+# Local-only agent notes
+.agent-notes/
+
+# Python cache
+__pycache__/
+backend/__pycache__/
+*.pyc
+
+# Frontend runtime storage
+frontend/storage/activity/*.json
+frontend/storage/daily/*.json
+frontend/storage/jobs/**
+frontend/storage/pending/**
+frontend/storage/uploads/**
+!frontend/storage/activity/.htaccess
+!frontend/storage/daily/.htaccess
+!frontend/storage/jobs/.htaccess
+!frontend/storage/pending/.htaccess
+!frontend/storage/uploads/.htaccess
+!frontend/storage/.htaccess
+
+# Deployment artifacts
+hostgator-deploy/public_html/
+hostgator-deploy/hostgator-public_html.zip
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
