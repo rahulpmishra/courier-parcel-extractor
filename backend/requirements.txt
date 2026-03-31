@@ -1,0 +1,8 @@
+google-genai
+Pillow
+pandas
+fastapi
+google-cloud-storage
+google-cloud-tasks
+python-multipart
+uvicorn[standard]

@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+.git/
+.venv/
+venv/
+frontend/storage/
+frontend/
+api.txt
+api_usage.json
+all_results.json
+output.csv
