@@ -1,14 +1,18 @@
 from google import genai
 from PIL import Image
 from datetime import date
-import difflib, json, re, os, pandas as pd, time
+import difflib, json, re, os, pandas as pd, time, sys
 
 # CONFIG
 MODEL = "models/gemini-3.1-flash-lite-preview"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 API_KEY_PATH = os.path.join(BASE_DIR, "api.txt")
 USAGE_FILE_PATH = os.path.join(BASE_DIR, "api_usage.json")
-IMAGE_FOLDER = os.path.join(r"C:\Users\rahul\Pictures\New folder\test", "t")
+IMAGE_FOLDER = (
+    sys.argv[1]
+    if len(sys.argv) > 1
+    else os.environ.get("IMAGE_FOLDER", os.path.join(BASE_DIR, "sample_images"))
+)
 CITIES_MAP_PATH = os.path.join(BASE_DIR, "cities", "final_pincode_map.json")
 SENDER_NAME = os.path.basename(os.path.normpath(IMAGE_FOLDER))
 REQUESTS_PER_MINUTE = 13

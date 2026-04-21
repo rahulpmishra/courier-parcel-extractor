@@ -2,7 +2,10 @@
 backend/api.txt
 backend/api_usage.json
 backend/cloudrun.env.yaml
+backend/service-check.yaml
 frontend/app/config.php
+frontend/app/mock_backend.php
+frontend/phpinfo.php
 frontend/logindata.json
 
 # Local-only agent notes
@@ -15,6 +18,7 @@ backend/__pycache__/
 
 # Frontend runtime storage
 frontend/storage/activity/*.json
+frontend/storage/daily/*.csv
 frontend/storage/daily/*.json
 frontend/storage/jobs/**
 frontend/storage/pending/**
@@ -27,8 +31,7 @@ frontend/storage/uploads/**
 !frontend/storage/.htaccess
 
 # Deployment artifacts
-hostgator-deploy/public_html/
-hostgator-deploy/hostgator-public_html.zip
+hostgator-deploy/
 
 # OS / editor noise
 .DS_Store

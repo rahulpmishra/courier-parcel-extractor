@@ -5,7 +5,7 @@
 Canonical frontend source:
 
 ```text
-D:\KURIERWALA\parcel-extractor-control-desk\frontend
+frontend
 ```
 
 ## Deployment package
@@ -13,7 +13,19 @@ D:\KURIERWALA\parcel-extractor-control-desk\frontend
 Latest generated package:
 
 ```text
-D:\KURIERWALA\parcel-extractor-control-desk\hostgator-deploy\hostgator-public_html.zip
+hostgator-deploy\hostgator-public_html.zip
+```
+
+Build a safe template package with:
+
+```powershell
+.\scripts\build_hostgator_package.ps1
+```
+
+For a private/live deployment from your own machine, include your ignored local `config.php` and `logindata.json` with:
+
+```powershell
+.\scripts\build_hostgator_package.ps1 -IncludeLocalConfig
 ```
 
 ## Upload flow

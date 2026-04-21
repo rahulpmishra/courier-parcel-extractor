@@ -5,7 +5,7 @@
 Work from:
 
 ```text
-D:\KURIERWALA\parcel-extractor-control-desk
+path\to\parcel-extractor-control-desk
 ```
 
 ## Local frontend test copy
@@ -23,14 +23,14 @@ That folder is the XAMPP-served test copy, not the canonical source of truth.
 Backend files live in:
 
 ```text
-D:\KURIERWALA\parcel-extractor-control-desk\backend
+backend
 ```
 
 To run the local extraction script:
 
 ```powershell
-cd D:\KURIERWALA\parcel-extractor-control-desk\backend
-python .\extract_shipments.py
+cd path\to\parcel-extractor-control-desk\backend
+python .\extract_shipments.py "C:\path\to\parcel-images"
 ```
 
 ## Local frontend testing
@@ -60,7 +60,7 @@ frontend\app\config.example.php -> frontend\app\config.php
 Place your local script key in:
 
 ```text
-D:\KURIERWALA\parcel-extractor-control-desk\backend\api.txt
+backend\api.txt
 ```
 
 Supported formats:
@@ -70,7 +70,7 @@ Supported formats:
 
 ## Current local workflow
 
-1. edit source in `D:\KURIERWALA\parcel-extractor-control-desk`
+1. edit source in your cloned `parcel-extractor-control-desk` folder
 2. sync or copy frontend changes into `C:\xampp\htdocs\frontend` when needed
 3. test frontend locally in browser
 4. test backend locally or against live Cloud Run
@@ -80,13 +80,19 @@ Supported formats:
 Sync canonical frontend into the XAMPP-served copy:
 
 ```powershell
-cd D:\KURIERWALA\parcel-extractor-control-desk
+cd path\to\parcel-extractor-control-desk
 .\scripts\sync_frontend_to_xampp.ps1
 ```
 
 Rebuild the HostGator upload package:
 
 ```powershell
-cd D:\KURIERWALA\parcel-extractor-control-desk
+cd path\to\parcel-extractor-control-desk
 .\scripts\build_hostgator_package.ps1
+```
+
+For a private live package that includes your ignored local frontend config and login file:
+
+```powershell
+.\scripts\build_hostgator_package.ps1 -IncludeLocalConfig
 ```

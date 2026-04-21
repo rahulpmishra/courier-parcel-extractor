@@ -5,7 +5,7 @@
 Deploy from:
 
 ```text
-D:\KURIERWALA\parcel-extractor-control-desk\backend
+backend
 ```
 
 ## Required files
@@ -39,7 +39,7 @@ Fill in your own:
 ## Deploy
 
 ```powershell
-cd D:\KURIERWALA\parcel-extractor-control-desk\backend
+cd path\to\parcel-extractor-control-desk\backend
 .\deploy_backend.ps1 -ProjectId "your-project-id" -BucketName "your-bucket-name"
 ```
 
@@ -48,7 +48,7 @@ cd D:\KURIERWALA\parcel-extractor-control-desk\backend
 To update only the Gemini API key without a full source build:
 
 ```cmd
-"D:\KURIERWALA\parcel-extractor-control-desk\backend\setkey.cmd" AQ.YOUR_NEW_KEY
+setkey.cmd AQ.YOUR_NEW_KEY your-gcp-project-id
 ```
 
 ## Important production note

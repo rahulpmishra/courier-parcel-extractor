@@ -3,7 +3,7 @@ param(
     [string]$ApiKey,
 
     [Parameter(Mandatory = $false)]
-    [string]$ProjectId = "kurierwala-ocr-backend",
+    [string]$ProjectId = $env:GOOGLE_CLOUD_PROJECT,
 
     [Parameter(Mandatory = $false)]
     [string]$Region = "us-central1",
@@ -20,12 +20,11 @@ function Resolve-GcloudCommand {
         return $command.Source
     }
 
-    $fallback = "C:\Users\rahul\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd"
-    if (Test-Path -LiteralPath $fallback) {
-        return $fallback
-    }
+    throw "gcloud was not found. Install Google Cloud SDK and make sure it is available in PATH."
+}
 
-    throw "gcloud was not found. Install Google Cloud SDK or update the fallback path in set_gemini_api_key.ps1."
+if ([string]::IsNullOrWhiteSpace($ProjectId)) {
+    throw "ProjectId is required. Pass -ProjectId or set the GOOGLE_CLOUD_PROJECT environment variable."
 }
 
 $gcloud = Resolve-GcloudCommand

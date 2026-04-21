@@ -26,7 +26,7 @@ This folder contains the Python backend used for parcel-image extraction and job
 Deploy from this folder:
 
 ```powershell
-cd D:\KURIERWALA\parcel-extractor-control-desk\backend
+cd path\to\parcel-extractor-control-desk\backend
 .\deploy_backend.ps1 -ProjectId "your-project-id" -BucketName "your-bucket-name"
 ```
 
@@ -35,8 +35,8 @@ cd D:\KURIERWALA\parcel-extractor-control-desk\backend
 For standalone extraction testing:
 
 ```powershell
-cd D:\KURIERWALA\parcel-extractor-control-desk\backend
-python .\extract_shipments.py
+cd path\to\parcel-extractor-control-desk\backend
+python .\extract_shipments.py "C:\path\to\parcel-images"
 ```
 
 ## Notes

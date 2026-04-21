@@ -12,7 +12,7 @@
 For local backend script usage, place your key in:
 
 ```text
-D:\KURIERWALA\parcel-extractor-control-desk\backend\api.txt
+backend\api.txt
 ```
 
 Supported formats:
@@ -54,7 +54,7 @@ frontend/app/config.php
 You can rotate the backend key with:
 
 ```cmd
-"D:\KURIERWALA\parcel-extractor-control-desk\backend\setkey.cmd" AQ.YOUR_NEW_KEY
+backend\setkey.cmd AQ.YOUR_NEW_KEY your-gcp-project-id
 ```
 
 That updates only the `GEMINI_API_KEY` on Cloud Run.

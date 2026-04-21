@@ -1,6 +1,9 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string]$ProjectRoot = "D:\KURIERWALA\parcel-extractor-control-desk"
+    [string]$ProjectRoot = "D:\KURIERWALA\parcel-extractor-control-desk",
+
+    [Parameter(Mandatory = $false)]
+    [switch]$IncludeLocalConfig
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,8 +39,7 @@ $rootFiles = @(
     "job_status.php",
     "login.php",
     "logout.php",
-    "submit.php",
-    "logindata.json"
+    "submit.php"
 )
 
 foreach ($file in $rootFiles) {
@@ -47,11 +49,40 @@ foreach ($file in $rootFiles) {
     }
 }
 
-foreach ($dir in @("app", "assets")) {
+foreach ($dir in @("assets")) {
     $source = Join-Path $frontendRoot $dir
     if (Test-Path $source) {
         Copy-Item -LiteralPath $source -Destination (Join-Path $publicHtml $dir) -Recurse -Force
     }
+}
+
+$sourceApp = Join-Path $frontendRoot "app"
+$targetApp = Join-Path $publicHtml "app"
+New-Item -ItemType Directory -Force -Path $targetApp | Out-Null
+
+if (Test-Path $sourceApp) {
+    Get-ChildItem -Force $sourceApp | Where-Object {
+        -not $_.PSIsContainer -and $_.Name -notin @("config.php", "mock_backend.php")
+    } | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $targetApp $_.Name) -Force
+    }
+}
+
+if ($IncludeLocalConfig) {
+    foreach ($file in @("app\config.php", "logindata.json")) {
+        $source = Join-Path $frontendRoot $file
+        if (-not (Test-Path $source)) {
+            throw "Required local deployment file not found: $source"
+        }
+
+        $target = Join-Path $publicHtml $file
+        $targetParent = Split-Path -Parent $target
+        New-Item -ItemType Directory -Force -Path $targetParent | Out-Null
+        Copy-Item -LiteralPath $source -Destination $target -Force
+    }
+} else {
+    Copy-Item -LiteralPath (Join-Path $frontendRoot "app\config.example.php") -Destination (Join-Path $targetApp "config.example.php") -Force
+    Copy-Item -LiteralPath (Join-Path $frontendRoot "logindata.example.json") -Destination (Join-Path $publicHtml "logindata.example.json") -Force
 }
 
 $storageRoot = Join-Path $publicHtml "storage"
@@ -72,7 +103,9 @@ if (Test-Path $sourceStorageRoot) {
         $sourceSubdir = Join-Path $sourceStorageRoot $subdir
         $targetSubdir = Join-Path $storageRoot $subdir
         if (Test-Path $sourceSubdir) {
-            Get-ChildItem -Force $sourceSubdir | Where-Object { -not $_.PSIsContainer } | ForEach-Object {
+            Get-ChildItem -Force $sourceSubdir | Where-Object {
+                -not $_.PSIsContainer -and $_.Name -in @(".htaccess", ".gitkeep")
+            } | ForEach-Object {
                 Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $targetSubdir $_.Name) -Force
             }
         }
