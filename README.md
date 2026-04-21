@@ -1,77 +1,101 @@
-# Parcel Extractor Control Desk
+# Courier Parcel Extractor
 
-An end-to-end parcel data extraction system that turns parcel images into validated structured outputs through a PHP control desk frontend and a Python Cloud Run backend.
+AI-powered courier parcel extraction dashboard that converts parcel images into validated CSV/JSON records using Gemini, FastAPI, PHP, and Google Cloud.
+
+## Why It Matters
+
+Courier teams often spend significant time manually reading parcel photos, typing receiver details, checking AWB numbers, validating phone/PIN values, and preparing CSV reports. This project automates that workflow while keeping an operator in control of review, downloads, duplicate handling, and master data updates.
+
+It demonstrates practical AI application engineering across multimodal extraction, backend job processing, validation logic, cloud deployment, and a production-style operations dashboard.
 
 ## Demo
 
-Demo GIF:
-- add a short workflow GIF here later
+https://github.com/user-attachments/assets/1440788a-575a-4987-9098-58d17fcf8d55
 
-Demo video:
-- add a walkthrough link here later
+## What It Does
 
-## Why it matters
+- Uploads parcel image batches from a web dashboard
+- Extracts receiver, address, PIN, phone, and AWB details using Gemini
+- Validates important courier fields such as PIN, phone number, and AWB
+- Infers city values using a local pincode map
+- Tracks batch progress with live job monitoring
+- Supports cancel, retry, download, and completed-run cleanup flows
+- Exports structured CSV and JSON outputs
+- Stores verified rows in a persistent daily master store
+- Logs operational events such as login, batch processing, downloads, resets, and cancellations
 
-Parcel data entry is often slow, repetitive, and error-prone. Labels can include a mix of:
+## System Design
 
-- printed shipping details
-- handwritten recipient notes
-- noisy backgrounds
-- inconsistent image orientation
+### Frontend Dashboard
 
-This project addresses that by combining multimodal extraction, validation, queue-based batch processing, and an operator-friendly control desk. The result is a workflow that reduces manual effort while still keeping a human in control of downloads, master data updates, and operational review.
+The `frontend/` folder contains a PHP dashboard designed for local XAMPP testing and HostGator shared-hosting deployment. It handles operator login, batch submission, job status screens, CSV/JSON downloads, daily master records, duplicate handling, and activity visibility.
 
-## What the system does
+### Backend Extraction Service
 
-- accepts parcel image batches from a web interface
-- extracts delivery-side fields with Gemini
-- validates important fields such as PIN, phone, and AWB
-- enriches city values using a local pincode map
-- tracks batch progress with a live monitoring screen
-- exports CSV/JSON output
-- stores verified rows in a persistent master store
-- logs operational events such as login, download, reset, and batch activity
+The `backend/` folder contains a Python service designed for Cloud Run deployment. It creates extraction jobs, queues processing with Cloud Tasks, stores state and outputs in Cloud Storage, calls Gemini for parcel field extraction, validates output, and exposes job/download endpoints to the frontend.
 
-## Main parts
+## Key Features
 
-### `frontend/`
-PHP control desk intended for:
-- local testing in XAMPP
-- deployment to HostGator shared hosting
+- Gemini-based multimodal parcel data extraction
+- Queue-based batch processing with live progress updates
+- AWB, phone, and PIN normalization
+- Pincode-based city enrichment
+- Excel-safe CSV export formatting
+- Daily master store and batch-level downloads
+- Operator activity log and job lifecycle tracking
+- Separate deployment paths for Cloud Run backend and HostGator frontend
 
-### `backend/`
-Python extraction and job-processing service intended for:
-- local script testing
-- Cloud Run deployment with Cloud Tasks and Cloud Storage
+## Tech Stack
 
-### `docs/`
-Setup, deployment, and architecture guides.
+- Python
+- FastAPI
+- Gemini API
+- Google Cloud Run
+- Google Cloud Tasks
+- Google Cloud Storage
+- PHP
+- JavaScript
+- HTML/CSS
 
-### `hostgator-deploy/`
-Generated packaging area for clean frontend deployment bundles.
+## Project Structure
 
-### `scripts/`
-Maintenance helpers for rebuilding the HostGator package and syncing the local XAMPP frontend copy.
+```text
+courier-parcel-extractor/
+|-- backend/
+|   |-- main.py
+|   |-- extractor.py
+|   |-- storage.py
+|   |-- task_queue.py
+|   |-- csv_utils.py
+|   `-- cities/
+|-- frontend/
+|   |-- index.php
+|   |-- job.php
+|   |-- download.php
+|   |-- activity_view.php
+|   |-- app/
+|   `-- assets/
+|-- docs/
+|   |-- LOCAL_SETUP.md
+|   |-- API_KEY_SETUP.md
+|   |-- CLOUD_RUN_DEPLOY.md
+|   |-- HOSTGATOR_DEPLOY.md
+|   `-- ARCHITECTURE.md
+|-- scripts/
+|-- .gitignore
+`-- README.md
+```
 
-## Typical workflow
+## Start Here
 
-1. Configure your Gemini key and project settings
-2. Run or deploy the backend from `backend/`
-3. Point the frontend at the backend URL
-4. Start batches from the frontend
-5. Monitor progress on the job page
-6. Download CSV or merge rows into the master store
+- Local setup: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)
+- API key setup: [docs/API_KEY_SETUP.md](docs/API_KEY_SETUP.md)
+- Cloud Run backend deploy: [docs/CLOUD_RUN_DEPLOY.md](docs/CLOUD_RUN_DEPLOY.md)
+- HostGator frontend deploy: [docs/HOSTGATOR_DEPLOY.md](docs/HOSTGATOR_DEPLOY.md)
+- Architecture overview: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
-## Start here
+## Repository Notes
 
-- Local setup: [docs/LOCAL_SETUP.md](./docs/LOCAL_SETUP.md)
-- API key setup: [docs/API_KEY_SETUP.md](./docs/API_KEY_SETUP.md)
-- Cloud Run backend deploy: [docs/CLOUD_RUN_DEPLOY.md](./docs/CLOUD_RUN_DEPLOY.md)
-- HostGator frontend deploy: [docs/HOSTGATOR_DEPLOY.md](./docs/HOSTGATOR_DEPLOY.md)
-- Architecture overview: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
-
-## Repo notes
-
-- The repo is structured so the same codebase can support both local testing and production deployment.
-- Real secrets, local runtime files, and generated deployment artifacts should not be committed to the public repo.
-- Utility scripts are available under `scripts/` for recurring local maintenance tasks.
+- Real secrets, API keys, runtime files, uploads, and generated deployment bundles are intentionally ignored.
+- `frontend/storage/` is runtime state and should remain writable in deployment.
+- `hostgator-deploy/` is generated locally for deployment packaging and is not part of the public source tree.
