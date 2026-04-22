@@ -152,9 +152,31 @@ def pick_phone(value: Any) -> str:
     return matches[0] if matches else ""
 
 
-def pick_awb(value: Any) -> str:
-    match = re.search(r"(?<!\d)(\d{12})(?!\d)", normalize_value(value))
-    return match.group(1) if match else ""
+def pick_awb(value: Any, phone: str = "") -> str:
+    text = normalize_value(value).upper()
+    phone_digits = re.sub(r"\D+", "", normalize_value(phone))
+
+    def is_phone_candidate(candidate: str) -> bool:
+        return bool(
+            phone_digits
+            and (
+                candidate == phone_digits
+                or candidate == f"91{phone_digits}"
+            )
+        )
+
+    if re.fullmatch(r"[A-Z][\s-]+\d{8,15}", text.strip()):
+        return ""
+
+    for candidate in re.findall(r"(?<![A-Z0-9])(\d{8,15})(?![A-Z0-9])", text):
+        if len(candidate) in {8, 9, 11, 12, 13, 14, 15} and not is_phone_candidate(candidate):
+            return candidate
+
+    for candidate in re.findall(r"(?<![A-Z0-9])([A-Z0-9]{9,15})(?![A-Z0-9])", text):
+        if re.search(r"[A-Z]", candidate) and re.search(r"\d", candidate) and not is_phone_candidate(candidate):
+            return candidate
+
+    return ""
 
 
 def normalize_match_text(value: Any) -> str:
@@ -422,7 +444,7 @@ class ParcelExtractor:
             }
             validated["pin"] = pick_pin(validated["pin"])
             validated["phone"] = pick_phone(validated["phone"])
-            validated["awb"] = pick_awb(validated["awb"])
+            validated["awb"] = pick_awb(validated["awb"], validated["phone"])
             return validated
         except Exception:
             return {
