@@ -14,14 +14,20 @@ if ($jobId === '') {
 
 try {
     $rows = get_job_rows($jobId);
+    $skippedCount = count(skipped_result_file_names($rows));
     $result = merge_rows_into_daily_store($rows);
     clear_completed_job_reference($jobId);
-    set_flash(
-        'success',
-        $result['row_count'] . ' rows currently in the master store. '
+    $message = $result['row_count'] . ' rows currently in the master store. '
         . $result['added_count'] . ' added and '
-        . $result['replaced_count'] . ' replaced from this batch.'
-    );
+        . $result['replaced_count'] . ' replaced from this batch.';
+
+    if ($skippedCount > 0) {
+        $message .= ' ' . $skippedCount . ' fully blank skipped file'
+            . ($skippedCount === 1 ? ' was' : 's were')
+            . ' not added.';
+    }
+
+    set_flash('success', $message);
 } catch (Throwable $exception) {
     set_flash('errors', [$exception->getMessage()]);
 }

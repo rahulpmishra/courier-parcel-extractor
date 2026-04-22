@@ -26,7 +26,8 @@ if ($jobId === '' || !in_array($type, ['csv', 'json'], true)) {
 
 if (app_config('backend_mode') === 'api') {
     try {
-        $rows = get_job_rows($jobId);
+        $allRows = get_job_rows($jobId);
+        $rows = filter_nonblank_result_rows($allRows);
         $job = get_job($jobId);
     } catch (Throwable $exception) {
         http_response_code(404);

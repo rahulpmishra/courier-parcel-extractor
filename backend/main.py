@@ -263,7 +263,12 @@ def process_job(job_id: str) -> dict:
     reporter = ProgressState(storage_backend, job_id, job_state)
 
     try:
-        if str(job_state.get("status", "")).strip().lower() in {"canceled", "canceling"}:
+        status = str(job_state.get("status", "")).strip().lower()
+        if status in {"completed", "failed", "canceled"}:
+            storage_backend.delete_job_input_bundle(job_id)
+            return build_public_job_payload(job_state)
+
+        if status == "canceling":
             storage_backend.delete_job_input_bundle(job_id)
             job_state["message"] = "Run was canceled before processing started."
             job_state["status"] = "canceled"
@@ -271,7 +276,32 @@ def process_job(job_id: str) -> dict:
             storage_backend.save_job_status(job_id, job_state)
             return build_public_job_payload(job_state)
 
-        uploaded_files = storage_backend.load_job_input_bundle(job_id)
+        try:
+            uploaded_files = storage_backend.load_job_input_bundle(job_id)
+        except FileNotFoundError as exc:
+            try:
+                rows = storage_backend.load_job_result(job_id)
+            except FileNotFoundError:
+                job_state["status"] = "failed"
+                job_state["message"] = str(exc)
+                job_state["updated_at"] = current_timestamp()
+                storage_backend.save_job_status(job_id, job_state)
+                return build_public_job_payload(job_state)
+
+            job_state["status"] = "completed"
+            job_state["progress"] = 100
+            job_state["message"] = "Processing complete. Download actions are ready."
+            job_state["updated_at"] = current_timestamp()
+            job_state["leftover_files"] = [
+                str(row.get("file", ""))
+                for row in rows
+                if isinstance(row, dict) and any(
+                    not row.get(key, "") for key in ["receiver", "address", "pin", "phone", "awb"]
+                )
+            ]
+            storage_backend.save_job_status(job_id, job_state)
+            return build_public_job_payload(job_state)
+
         uploaded_images = [
             UploadedImage(
                 file_name=file.get("file_name", ""),
@@ -294,7 +324,7 @@ def process_job(job_id: str) -> dict:
 
         job_state["status"] = "completed"
         job_state["progress"] = 100
-        job_state["message"] = "Processing complete. Download actions are ready."
+        job_state["message"] = result.message
         job_state["updated_at"] = current_timestamp()
         job_state["leftover_files"] = result.leftover_files
         job_state["usage"] = result.usage

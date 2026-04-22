@@ -34,6 +34,15 @@ $isFinished = in_array($status, ['completed', 'failed', 'canceled'], true);
 $refreshSeconds = (int) app_config('job_refresh_seconds');
 $statusKicker = job_status_kicker((string) $status);
 $statusSubnote = job_status_subnote((string) $status);
+$skippedFiles = [];
+
+if ($status === 'completed') {
+    try {
+        $skippedFiles = skipped_result_file_names(get_job_rows($jobId));
+    } catch (Throwable $exception) {
+        $pollWarnings[] = 'Unable to load skipped file details: ' . $exception->getMessage();
+    }
+}
 
 if ($isFinished) {
     clear_active_job_reference($jobId);
@@ -167,6 +176,20 @@ $otherActiveJob = (
                     <ul class="file-list">
                         <?php foreach ($job['files'] as $file): ?>
                             <li><?= h($file['original_name'] ?? 'Unnamed file') ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($skippedFiles): ?>
+                <div class="file-list-wrap file-list-wrap-scroll">
+                    <div class="alert alert-warning alert-compact-page">
+                        <strong>Skipped / Not Processed Files:</strong>
+                        These files returned no usable extracted fields and are excluded from CSV downloads and master data.
+                    </div>
+                    <ul class="file-list">
+                        <?php foreach ($skippedFiles as $fileName): ?>
+                            <li><?= h($fileName) ?></li>
                         <?php endforeach; ?>
                     </ul>
                 </div>

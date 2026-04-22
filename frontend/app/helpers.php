@@ -1076,6 +1076,7 @@ function save_daily_store(array $rowsByFile, ?string $date = null): array
 
 function merge_rows_into_daily_store(array $rows, ?string $date = null): array
 {
+    $rows = filter_nonblank_result_rows($rows);
     $snapshot = load_daily_store($date);
     $rowsByFile = $snapshot['rows_by_file'];
     $added = 0;
@@ -1130,7 +1131,7 @@ function reset_daily_store(?string $date = null): array
 function daily_rows_for_view(?string $date = null): array
 {
     $snapshot = load_daily_store($date);
-    $rows = array_values($snapshot['rows_by_file']);
+    $rows = filter_nonblank_result_rows(array_values($snapshot['rows_by_file']));
 
     usort($rows, static function (array $left, array $right): int {
         $leftDate = (string) ($left['date'] ?? '');
@@ -1160,10 +1161,56 @@ function csv_export_value(string $column, $value): string
 }
 
 
+function result_data_fields(): array
+{
+    return ['receiver', 'address', 'pin', 'phone', 'awb'];
+}
+
+
+function is_fully_blank_result_row(array $row): bool
+{
+    foreach (result_data_fields() as $field) {
+        if (trim((string) ($row[$field] ?? '')) !== '') {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+function filter_nonblank_result_rows(array $rows): array
+{
+    return array_values(array_filter($rows, static function ($row): bool {
+        return is_array($row) && !is_fully_blank_result_row($row);
+    }));
+}
+
+
+function skipped_result_file_names(array $rows): array
+{
+    $files = [];
+
+    foreach ($rows as $row) {
+        if (!is_array($row) || !is_fully_blank_result_row($row)) {
+            continue;
+        }
+
+        $fileName = trim((string) ($row['file'] ?? $row['source_path'] ?? ''));
+        if ($fileName !== '') {
+            $files[$fileName] = $fileName;
+        }
+    }
+
+    natcasesort($files);
+    return array_values($files);
+}
+
+
 function export_daily_store_csv(?string $date = null): string
 {
     $snapshot = load_daily_store($date);
-    $rows = array_values($snapshot['rows_by_file']);
+    $rows = filter_nonblank_result_rows(array_values($snapshot['rows_by_file']));
     $outputPath = storage_path('daily/' . app_config('daily_store_prefix') . 'export.csv');
     ensure_directory(dirname($outputPath));
 

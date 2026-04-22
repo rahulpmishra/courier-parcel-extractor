@@ -22,7 +22,9 @@ INITIAL_ATTEMPTS = 1
 FINAL_RETRY_ATTEMPTS = 1
 SERVICE_UNAVAILABLE_THRESHOLD = 2
 SERVICE_UNAVAILABLE_COOLDOWN_MINUTES = 10
-MAX_SERVICE_UNAVAILABLE_COOLDOWNS_PER_FILE = 3
+LATE_SERVICE_UNAVAILABLE_COOLDOWN_MINUTES = 5
+MAX_SERVICE_UNAVAILABLE_SKIPS_BEFORE_STOP = 2
+SERVICE_UNAVAILABLE_SKIP_DELAY_MINUTES = 2
 SERVICE_UNAVAILABLE_CANCEL_CHECK_SECONDS = 5
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -67,9 +69,14 @@ class BatchProcessingResult:
     rows: list[dict[str, str]]
     leftover_files: list[str]
     usage: dict[str, Any]
+    message: str = "Processing complete. Download actions are ready."
 
 
 class JobCanceledError(RuntimeError):
+    pass
+
+
+class ServiceUnavailableAfterCooldownError(RuntimeError):
     pass
 
 
@@ -532,7 +539,6 @@ class ParcelExtractor:
             finally:
                 image.close()
 
-            self._ensure_not_canceled(cancellation_checker)
             best_data = self.merge_data(
                 best_data,
                 new_data,
@@ -559,9 +565,10 @@ class ParcelExtractor:
         status_callback: StatusCallback | None = None,
         progress_hint: int | None = None,
         cancellation_checker: CancellationChecker | None = None,
+        cooldown_minutes: int = SERVICE_UNAVAILABLE_COOLDOWN_MINUTES,
     ) -> dict[str, str]:
         consecutive_service_unavailable = 0
-        cooldowns_used = 0
+        cooldown_used = False
 
         while True:
             self._ensure_not_canceled(cancellation_checker)
@@ -591,13 +598,18 @@ class ParcelExtractor:
                     continue
 
                 if consecutive_service_unavailable >= SERVICE_UNAVAILABLE_THRESHOLD:
-                    cooldowns_used += 1
-                    cooldown_seconds = SERVICE_UNAVAILABLE_COOLDOWN_MINUTES * 60
+                    if cooldown_used:
+                        raise ServiceUnavailableAfterCooldownError(
+                            f"Gemini stayed under high demand while processing {uploaded.file_name}."
+                        ) from exc
+
+                    cooldown_used = True
+                    cooldown_seconds = cooldown_minutes * 60
                     remaining_seconds = cooldown_seconds
                     self._emit_status(
                         status_callback,
                         progress_hint or 10,
-                        f"Gemini is under high demand while processing {uploaded.file_name}. Cooling down for {SERVICE_UNAVAILABLE_COOLDOWN_MINUTES} minutes before retrying.",
+                        f"Gemini is under high demand while processing {uploaded.file_name}. Cooling down for {cooldown_minutes} minutes before retrying.",
                     )
 
                     while remaining_seconds > 0:
@@ -615,11 +627,6 @@ class ParcelExtractor:
 
                     consecutive_service_unavailable = 0
 
-                    if cooldowns_used >= MAX_SERVICE_UNAVAILABLE_COOLDOWNS_PER_FILE:
-                        raise RuntimeError(
-                            f"Server kept returning 503 for {uploaded.file_name} even after cooldown retries."
-                        ) from exc
-
     def _emit_status(
         self,
         status_callback: StatusCallback | None,
@@ -628,6 +635,18 @@ class ParcelExtractor:
     ) -> None:
         if status_callback is not None:
             status_callback(max(0, min(progress, 100)), message)
+
+    def _sleep_with_cancel_checks(
+        self,
+        seconds: int,
+        cancellation_checker: CancellationChecker | None = None,
+    ) -> None:
+        remaining_seconds = max(0, seconds)
+        while remaining_seconds > 0:
+            self._ensure_not_canceled(cancellation_checker)
+            sleep_seconds = min(SERVICE_UNAVAILABLE_CANCEL_CHECK_SECONDS, remaining_seconds)
+            time.sleep(sleep_seconds)
+            remaining_seconds -= sleep_seconds
 
     @staticmethod
     def _ensure_not_canceled(cancellation_checker: CancellationChecker | None) -> None:
@@ -643,7 +662,20 @@ class ParcelExtractor:
         if not uploaded_files:
             return BatchProcessingResult(rows=[], leftover_files=[], usage=self.current_usage_snapshot())
 
-        self._ensure_not_canceled(cancellation_checker)
+        try:
+            self._ensure_not_canceled(cancellation_checker)
+        except JobCanceledError:
+            rows = [
+                self.empty_data(uploaded.file_name, uploaded.sender, uploaded.source_path)
+                for uploaded in uploaded_files
+            ]
+            return BatchProcessingResult(
+                rows=rows,
+                leftover_files=[row["file"] for row in rows],
+                usage=self.current_usage_snapshot(),
+                message="Run canceled. Partial results are ready.",
+            )
+
         if len(uploaded_files) > self.remaining_request_budget():
             raise RuntimeError(
                 f"Found {len(uploaded_files)} images but only {self.remaining_request_budget()} first-pass requests remain today. "
@@ -652,37 +684,95 @@ class ParcelExtractor:
 
         total_files = len(uploaded_files)
         results: list[dict[str, str]] = []
+        high_demand_skipped_indices: set[int] = set()
+        stopped_for_high_demand = False
+        canceled_with_partial_results = False
+        final_message = "Processing complete. Download actions are ready."
+
+        def append_blank_rows(start_index: int) -> None:
+            for remaining in uploaded_files[start_index:]:
+                results.append(
+                    self.empty_data(remaining.file_name, remaining.sender, remaining.source_path)
+                )
 
         self._emit_status(status_callback, 10, f"Starting extraction for {total_files} images.")
 
         for index, uploaded in enumerate(uploaded_files):
-            self._ensure_not_canceled(cancellation_checker)
-            self._emit_status(
-                status_callback,
-                10 + int((index / max(total_files, 1)) * 70),
-                f"Processing image {index + 1} of {total_files}: {uploaded.file_name}",
-            )
-
             try:
+                self._ensure_not_canceled(cancellation_checker)
+                self._emit_status(
+                    status_callback,
+                    10 + int((index / max(total_files, 1)) * 70),
+                    f"Processing image {index + 1} of {total_files}: {uploaded.file_name}",
+                )
                 data = self.process_file_with_backoff(
                     uploaded,
                     INITIAL_ATTEMPTS,
                     status_callback=status_callback,
                     progress_hint=10 + int((index / max(total_files, 1)) * 70),
                     cancellation_checker=cancellation_checker,
+                    cooldown_minutes=(
+                        LATE_SERVICE_UNAVAILABLE_COOLDOWN_MINUTES
+                        if len(high_demand_skipped_indices) >= MAX_SERVICE_UNAVAILABLE_SKIPS_BEFORE_STOP
+                        else SERVICE_UNAVAILABLE_COOLDOWN_MINUTES
+                    ),
                 )
                 results.append(data)
             except JobCanceledError:
-                raise
+                canceled_with_partial_results = True
+                final_message = "Run canceled. Partial results are ready."
+                results.append(self.empty_data(uploaded.file_name, uploaded.sender, uploaded.source_path))
+                append_blank_rows(index + 1)
+                self._emit_status(status_callback, 94, final_message)
+                break
+            except ServiceUnavailableAfterCooldownError:
+                results.append(self.empty_data(uploaded.file_name, uploaded.sender, uploaded.source_path))
+                high_demand_skipped_indices.add(index)
+
+                if len(high_demand_skipped_indices) > MAX_SERVICE_UNAVAILABLE_SKIPS_BEFORE_STOP:
+                    stopped_for_high_demand = True
+                    final_message = (
+                        "Gemini is under very high demand today. Partial results are ready; "
+                        "try the remaining files again after some time."
+                    )
+                    self._emit_status(status_callback, 94, final_message)
+
+                    append_blank_rows(index + 1)
+                    break
+
+                self._emit_status(
+                    status_callback,
+                    10 + int(((index + 1) / max(total_files, 1)) * 70),
+                    (
+                        f"Skipping {uploaded.file_name} because Gemini stayed busy. "
+                        f"Waiting {SERVICE_UNAVAILABLE_SKIP_DELAY_MINUTES} minutes before the next image."
+                    ),
+                )
+                try:
+                    self._sleep_with_cancel_checks(
+                        SERVICE_UNAVAILABLE_SKIP_DELAY_MINUTES * 60,
+                        cancellation_checker,
+                    )
+                except JobCanceledError:
+                    canceled_with_partial_results = True
+                    final_message = "Run canceled. Partial results are ready."
+                    append_blank_rows(index + 1)
+                    self._emit_status(status_callback, 94, final_message)
+                    break
             except Exception:
                 results.append(self.empty_data(uploaded.file_name, uploaded.sender, uploaded.source_path))
 
         leftover_indices = [index for index, item in enumerate(results) if self.has_missing_fields(item)]
         remaining_retry_budget = self.remaining_request_budget()
 
-        if leftover_indices and remaining_retry_budget > 0:
+        if (
+            leftover_indices
+            and remaining_retry_budget > 0
+            and not stopped_for_high_demand
+            and not canceled_with_partial_results
+        ):
             priority_order = sorted(
-                leftover_indices,
+                [item_index for item_index in leftover_indices if item_index not in high_demand_skipped_indices],
                 key=lambda item_index: self.retry_priority(results[item_index]),
                 reverse=True,
             )
@@ -706,18 +796,26 @@ class ParcelExtractor:
                         cancellation_checker=cancellation_checker,
                     )
                 except JobCanceledError:
-                    raise
+                    canceled_with_partial_results = True
+                    final_message = "Run canceled. Partial results are ready."
+                    self._emit_status(status_callback, 94, final_message)
+                    break
                 except Exception:
                     continue
 
-        self._ensure_not_canceled(cancellation_checker)
+        try:
+            self._ensure_not_canceled(cancellation_checker)
+        except JobCanceledError:
+            canceled_with_partial_results = True
+            final_message = "Run canceled. Partial results are ready."
         self._emit_status(status_callback, 96, "Inferring city values from address and pin.")
         results = [self.add_city_to_result(item) for item in results]
         leftover_files = [item["file"] for item in results if self.has_missing_fields(item)]
-        self._emit_status(status_callback, 100, "Processing complete. Download actions are ready.")
+        self._emit_status(status_callback, 100, final_message)
 
         return BatchProcessingResult(
             rows=results,
             leftover_files=leftover_files,
             usage=self.current_usage_snapshot(),
+            message=final_message,
         )
