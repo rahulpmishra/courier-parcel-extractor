@@ -778,7 +778,14 @@ class ParcelExtractor:
             )
 
             for retry_position, item_index in enumerate(priority_order[:remaining_retry_budget], start=1):
-                self._ensure_not_canceled(cancellation_checker)
+                try:
+                    self._ensure_not_canceled(cancellation_checker)
+                except JobCanceledError:
+                    canceled_with_partial_results = True
+                    final_message = "Run canceled. Partial results are ready."
+                    self._emit_status(status_callback, 94, final_message)
+                    break
+
                 uploaded = uploaded_files[item_index]
                 self._emit_status(
                     status_callback,
