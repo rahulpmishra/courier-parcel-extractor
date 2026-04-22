@@ -49,7 +49,13 @@ foreach ($dir in @("app", "assets")) {
     $source = Join-Path $frontendRoot $dir
     $target = Join-Path $TargetRoot $dir
     if (Test-Path $source) {
-        Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
+        if (-not (Test-Path $target)) {
+            New-Item -ItemType Directory -Path $target | Out-Null
+        }
+
+        Get-ChildItem -LiteralPath $source -Force | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $target -Recurse -Force
+        }
     }
 }
 
