@@ -289,3 +289,196 @@
 
     sortRows(button.dataset.sortDirection || 'desc');
 })();
+
+(function () {
+    var table = document.querySelector('[data-master-table]');
+    if (!table) {
+        return;
+    }
+
+    var dateButton = table.querySelector('[data-date-sort-button]');
+    var emptyButtons = Array.prototype.slice.call(table.querySelectorAll('[data-empty-sort-button]'));
+    var senderSearch = document.querySelector('[data-master-sender-search]');
+    var tbody = table.querySelector('tbody');
+
+    if (!dateButton || !tbody) {
+        return;
+    }
+
+    var activeMode = {
+        type: 'date',
+        direction: dateButton.dataset.sortDirection || 'desc',
+        columnIndex: null
+    };
+
+    Array.prototype.slice.call(tbody.querySelectorAll('tr')).forEach(function (row, index) {
+        row.dataset.originalIndex = String(index);
+    });
+
+    function parseDateValue(text) {
+        var value = (text || '').trim();
+        if (!value) {
+            return 0;
+        }
+
+        var timestamp = Date.parse(value + 'T00:00:00');
+        return Number.isNaN(timestamp) ? 0 : timestamp;
+    }
+
+    function rowText(row, columnIndex) {
+        return row.cells[columnIndex] ? row.cells[columnIndex].textContent.trim() : '';
+    }
+
+    function originalIndex(row) {
+        return parseInt(row.dataset.originalIndex || '0', 10);
+    }
+
+    function compareOriginal(leftRow, rightRow) {
+        return originalIndex(leftRow) - originalIndex(rightRow);
+    }
+
+    function compareByDate(direction) {
+        return function (leftRow, rightRow) {
+            var leftDate = parseDateValue(rowText(leftRow, 0));
+            var rightDate = parseDateValue(rowText(rightRow, 0));
+
+            if (leftDate === rightDate) {
+                return rowText(leftRow, 1).localeCompare(rowText(rightRow, 1), undefined, {
+                    numeric: true,
+                    sensitivity: 'base'
+                });
+            }
+
+            return direction === 'asc' ? leftDate - rightDate : rightDate - leftDate;
+        };
+    }
+
+    function compareByEmptyColumn(columnIndex) {
+        return function (leftRow, rightRow) {
+            var leftEmpty = rowText(leftRow, columnIndex) === '';
+            var rightEmpty = rowText(rightRow, columnIndex) === '';
+
+            if (leftEmpty !== rightEmpty) {
+                return leftEmpty ? -1 : 1;
+            }
+
+            return compareOriginal(leftRow, rightRow);
+        };
+    }
+
+    function currentComparator() {
+        if (activeMode.type === 'empty') {
+            return compareByEmptyColumn(activeMode.columnIndex);
+        }
+
+        if (activeMode.type === 'original') {
+            return compareOriginal;
+        }
+
+        return compareByDate(activeMode.direction);
+    }
+
+    function senderQuery() {
+        return senderSearch ? senderSearch.value.trim().toLowerCase() : '';
+    }
+
+    function applyRows() {
+        var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+        var query = senderQuery();
+        var comparator = currentComparator();
+
+        rows.sort(function (leftRow, rightRow) {
+            if (query) {
+                var leftMatch = rowText(leftRow, 2).toLowerCase().indexOf(query) !== -1;
+                var rightMatch = rowText(rightRow, 2).toLowerCase().indexOf(query) !== -1;
+
+                if (leftMatch !== rightMatch) {
+                    return leftMatch ? -1 : 1;
+                }
+            }
+
+            return comparator(leftRow, rightRow);
+        });
+
+        rows.forEach(function (row) {
+            tbody.appendChild(row);
+        });
+    }
+
+    function resetEmptyButtonLabels() {
+        emptyButtons.forEach(function (button) {
+            button.textContent = button.dataset.baseLabel || button.textContent;
+        });
+    }
+
+    function sortRows(direction) {
+        activeMode = {
+            type: 'date',
+            direction: direction,
+            columnIndex: null
+        };
+
+        resetEmptyButtonLabels();
+        dateButton.dataset.sortDirection = direction;
+        dateButton.textContent = direction === 'asc' ? 'Date oldest' : 'Date newest';
+        applyRows();
+    }
+
+    function sortEmptyRows(button) {
+        var columnIndex = parseInt(button.dataset.columnIndex || '-1', 10);
+        if (columnIndex < 0) {
+            return;
+        }
+
+        activeMode = {
+            type: 'empty',
+            direction: 'empty',
+            columnIndex: columnIndex
+        };
+
+        resetEmptyButtonLabels();
+        dateButton.textContent = 'Date';
+        button.textContent = (button.dataset.baseLabel || button.textContent) + ' empty';
+        applyRows();
+    }
+
+    function resetRows() {
+        activeMode = {
+            type: 'original',
+            direction: 'original',
+            columnIndex: null
+        };
+
+        resetEmptyButtonLabels();
+        dateButton.textContent = 'Date';
+        applyRows();
+    }
+
+    emptyButtons.forEach(function (button) {
+        button.dataset.baseLabel = button.textContent.trim();
+
+        button.addEventListener('click', function () {
+            sortEmptyRows(button);
+        });
+
+        button.addEventListener('dblclick', function (event) {
+            event.preventDefault();
+            resetRows();
+        });
+    });
+
+    if (senderSearch) {
+        senderSearch.addEventListener('input', applyRows);
+    }
+
+    dateButton.addEventListener('click', function () {
+        sortRows('desc');
+    });
+
+    dateButton.addEventListener('dblclick', function (event) {
+        event.preventDefault();
+        sortRows('asc');
+    });
+
+    sortRows(dateButton.dataset.sortDirection || 'desc');
+})();

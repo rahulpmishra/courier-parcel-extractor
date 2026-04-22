@@ -1188,6 +1188,43 @@ body {
     gap: 14px;
 }
 
+.master-tools {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.master-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ink-soft);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.master-search input {
+    width: min(240px, 42vw);
+    height: 38px;
+    border: 1px solid rgba(140, 117, 87, 0.24);
+    border-radius: 999px;
+    background: rgba(255, 252, 247, 0.92);
+    color: var(--ink);
+    font: inherit;
+    letter-spacing: 0;
+    text-transform: none;
+    padding: 0 14px;
+}
+
+.master-search input:focus {
+    outline: 2px solid rgba(192, 54, 33, 0.18);
+    border-color: rgba(192, 54, 33, 0.42);
+}
+
 .shell-table-page .table-wrap {
     max-height: min(34vh, 300px);
     margin-top: 16px;

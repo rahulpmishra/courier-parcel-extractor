@@ -32,7 +32,19 @@ $latestDate = (string) ($snapshot['latest_date'] ?? '');
                     <p class="status-label">Rows Stored</p>
                     <h2><?= h((string) $snapshot['row_count']) ?></h2>
                 </div>
-                <span class="status-pill status-completed">Master Store</span>
+                <div class="master-tools">
+                    <label class="master-search" for="master-sender-search">
+                        <span>Sender Search</span>
+                        <input
+                            type="search"
+                            id="master-sender-search"
+                            placeholder="Search sender"
+                            data-master-sender-search
+                            autocomplete="off"
+                        >
+                    </label>
+                    <span class="status-pill status-completed">Master Store</span>
+                </div>
             </div>
 
             <?php if (!$rows): ?>
@@ -44,9 +56,9 @@ $latestDate = (string) ($snapshot['latest_date'] ?? '');
                         Showing newest dates first from <?= h($latestDate) ?> back to <?= h($earliestDate) ?>.
                     <?php endif; ?>
                 </p>
-                <p class="status-subnote">Click the Date column once for newest to oldest. Double-click it for oldest to newest.</p>
+                <p class="status-subnote">Click Date for newest first, double-click for oldest first. Click City, Pin, Phone, or AWB to bring empty rows up; double-click the same label to reset.</p>
                 <div class="table-wrap">
-                    <table class="data-table" data-date-sort-table>
+                    <table class="data-table" data-master-table>
                         <thead>
                             <tr>
                                 <th>
@@ -58,10 +70,26 @@ $latestDate = (string) ($snapshot['latest_date'] ?? '');
                                 <th>Sender</th>
                                 <th>Receiver</th>
                                 <th>Address</th>
-                                <th>City</th>
-                                <th>Pin</th>
-                                <th>Phone</th>
-                                <th>AWB</th>
+                                <th>
+                                    <button type="button" class="sort-button" data-empty-sort-button data-column-index="5">
+                                        City
+                                    </button>
+                                </th>
+                                <th>
+                                    <button type="button" class="sort-button" data-empty-sort-button data-column-index="6">
+                                        Pin
+                                    </button>
+                                </th>
+                                <th>
+                                    <button type="button" class="sort-button" data-empty-sort-button data-column-index="7">
+                                        Phone
+                                    </button>
+                                </th>
+                                <th>
+                                    <button type="button" class="sort-button" data-empty-sort-button data-column-index="8">
+                                        AWB
+                                    </button>
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
